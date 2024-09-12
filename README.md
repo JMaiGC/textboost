@@ -36,14 +36,14 @@ For the exact package versions we used, please refer to [requirements.txt](requi
 ```bash
 CUDA_VISIBLE_DEVICES=3 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 --nproc-per-node=1 train_textboost.py \
 --pretrained_model_name_or_path=runwayml/stable-diffusion-v1-5 \
---instance_data_dir data/dreambooth/backpack_dog  \
---output_dir=debug/tb/backpack_dog \
---instance_token '<backpack_dog> backpack' \
---class_token 'backpack' \
---validation_prompt 'a <backpack_dog> backpack in the jungle' \
+--instance_data_dir data/dreambooth/dog  \
+--output_dir=output/tb/dog \
+--instance_token '<dog> dog' \
+--class_token 'dog' \
+--validation_prompt 'a <dog> dog in the jungle' \
 "--validation_steps=50",
---placeholder_token '<backpack_dog>' \
---initializer_token 'backpack' \
+--placeholder_token '<dog>' \
+--initializer_token 'dog' \
 --learning_rate=5e-5 \
 --emb_learning_rate=1e-3 \
 --train_batch_size=8 \
