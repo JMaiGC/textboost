@@ -41,7 +41,7 @@ CUDA_VISIBLE_DEVICES=3 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 
 --instance_token '<dog> dog' \
 --class_token 'dog' \
 --validation_prompt 'a <dog> dog in the jungle' \
-"--validation_steps=50",
+--validation_steps=50 \
 --placeholder_token '<dog>' \
 --initializer_token 'dog' \
 --learning_rate=5e-5 \
