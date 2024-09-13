@@ -69,7 +69,7 @@ CUDA_VISIBLE_DEVICES=6 python -m evaluation.dreambooth output/tb-sd1.5-n1 --toke
     author  = {Park, NaHyeon and Kim, Kunhee and Shim, Hyunjung},
     journal = {arXiv preprint},
     year    = {2024},
-    eprint  = {arXiv:24xx.yyyyy}
+    eprint  = {arXiv:2409.08248}
 }
 ```
 
