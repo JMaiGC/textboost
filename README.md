@@ -1,4 +1,4 @@
-# TextBoost: Towards One-Shot Customization of Text-to-Image Models via Fine-tuning Text Encoder
+# TextBoost: Towards One-Shot Personalization of Text-to-Image Models via Fine-tuning Text Encoder
 
 [![arXiv](https://img.shields.io/badge/arXiv-2409.08248-B31B1B.svg)](https://arxiv.org/abs/2409.08248)
 
@@ -30,12 +30,19 @@ conda activate textboost
 For the exact package versions we used, please refer to [requirements.txt](requirements.txt) file.
 
 
-
 ## Training
 
+You need to download the human-written prompts dataset. Follow the instructions from [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix) to download `human-written-prompts.jsonl`, and then place it in the `data` directory.
+
+We used a single image from each instance of [DreamBooth](https://github.com/google/dreambooth) benchmark.
+You can find images for each instance in [data/dreambooth_n1.txt](data/dreambooth_n1.txt). You can use this file to create a training data directory.
+Otherwise, the code will attempt to use a first `n=--num_samples` images in the directory.
+
+**Notice**: Our method was primarily tested using Stable Diffusion v1.5; however, this version is currently unavailable. You can use another version such as v1.4.
+
 ```bash
-CUDA_VISIBLE_DEVICES=3 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 --nproc-per-node=1 train_textboost.py \
---pretrained_model_name_or_path=runwayml/stable-diffusion-v1-5 \
+CUDA_VISIBLE_DEVICES=0 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 --nproc-per-node=1 train_textboost.py \
+--pretrained_model_name_or_path=CompVis/stable-diffusion-v1-4 \
 --instance_data_dir data/dreambooth/dog  \
 --output_dir=output/tb/dog \
 --instance_token '<dog> dog' \
@@ -58,14 +65,14 @@ CUDA_VISIBLE_DEVICES=3 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 
 ## Evaluation
 
 ```bash
-CUDA_VISIBLE_DEVICES=6 python -m evaluation.dreambooth output/tb-sd1.5-n1 --token-format '<INSTANCE>'
+CUDA_VISIBLE_DEVICES=0 python evaluate_dreambooth.py output/tb-sd1.5-n1 --token-format '<INSTANCE>'
 ```
 
 ## Citation
 
 ```bibtex
 @article{park2024textboost,
-    title   = {TextBoost: Towards One-Shot Customization of Text-to-Image Models},
+    title   = {TextBoost: Towards One-Shot Personalization of Text-to-Image Models},
     author  = {Park, NaHyeon and Kim, Kunhee and Shim, Hyunjung},
     journal = {arXiv preprint},
     year    = {2024},
