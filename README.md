@@ -40,7 +40,7 @@ Otherwise, the code will attempt to use a first `n=--num_samples` images in the 
 
 **Notice**: Our method was primarily tested using Stable Diffusion v1.5; however, this version is currently unavailable. You can use another version such as v1.4.
 
-```bash
+```sh
 CUDA_VISIBLE_DEVICES=0 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 --nproc-per-node=1 train_textboost.py \
 --pretrained_model_name_or_path=CompVis/stable-diffusion-v1-4 \
 --instance_data_dir data/dreambooth/dog  \
@@ -64,8 +64,23 @@ CUDA_VISIBLE_DEVICES=0 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 
 
 ## Evaluation
 
-```bash
-CUDA_VISIBLE_DEVICES=0 python evaluate_dreambooth.py output/tb-sd1.5-n1 --token-format '<INSTANCE>'
+To evaluate the trained model, ensure that the folder structure follows the format shown below:
+
+```sh
+.
+├── output
+│   └── tb-sd1.5-n1
+│      ├── backpack
+│      ├── backpack_dog
+│      ...
+│      └── wolf_plushie
+└── ...
+```
+
+Once the folder structure is correctly set up, run the following command:
+
+```sh
+CUDA_VISIBLE_DEVICES=0 python evaluate_dreambooth.py output/tb-sd1.5-n1 --token-format '<INSTANCE> SUBJECT'
 ```
 
 ## Citation
