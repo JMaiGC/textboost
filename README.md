@@ -1,6 +1,11 @@
 # TextBoost: Towards One-Shot Personalization of Text-to-Image Models via Fine-tuning Text Encoder
 
 [![arXiv](https://img.shields.io/badge/arXiv-2409.08248-B31B1B.svg)](https://arxiv.org/abs/2409.08248)
+[![Project page](https://img.shields.io/badge/Project-Page-brightgreen)](https://textboost.github.io)
+
+<div style="text-align: center;">
+  <img src="assets/teaser.png" alt="Alt text">
+</div>
 
 Abstract: *Recent breakthroughs in text-to-image models have opened up promising research avenues in personalized image generation, enabling users to create diverse images of a specific subject using natural language prompts. However, existing methods often suffer from performance degradation when given only a single reference image. They tend to overfit the input, producing highly similar outputs regardless of the text prompt. This paper addresses the challenge of one-shot personalization by mitigating overfitting, enabling the creation of controllable images through text prompts. Specifically, we propose a selective fine-tuning strategy that focuses on the text encoder. Furthermore, we introduce three key techniques to enhance personalization performance: (1) augmentation tokens to encourage feature disentanglement and alleviate overfitting, (2) a knowledge-preservation loss to reduce language drift and promote generalizability across diverse prompts, and (3) SNR-weighted sampling for efficient training. Extensive experiments demonstrate that our approach efficiently generates high-quality, diverse images using only a single reference image while significantly reducing memory and storage requirements.*
 
@@ -14,7 +19,7 @@ Our code has been tested on `python3.10` with `NVIDIA A6000 GPU`. However, it sh
 We recommend using a Python virtual environment or anaconda for managing dependencies. You can install the required packages using one of the following methods:
 
 #### Using `pip`:
-```bash
+```sh
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -22,7 +27,7 @@ pip install -r requirements.txt
 
 #### Using `conda`:
 
-```bash
+```sh
 conda env create -f environment.yml
 conda activate textboost
 ```
@@ -66,7 +71,7 @@ CUDA_VISIBLE_DEVICES=0 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 
 
 To evaluate the trained model, ensure that the folder structure follows the format shown below:
 
-```sh
+```
 .
 ├── output
 │   └── tb-sd1.5-n1
