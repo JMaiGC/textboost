@@ -435,7 +435,6 @@ def parse_args(input_args=None):
         if args.class_token is None:
             raise ValueError("You must specify prompt for class images.")
     else:
-        # logger is not available yet
         if args.class_data_dir is not None:
             warnings.warn("You need not use --class_data_dir without --with_image_prior.")
         if args.class_token is not None:
@@ -465,7 +464,7 @@ def log_validation(
 
     pipeline_args = {"safety_checker": None}
 
-    # create pipeline (note: unet and vae are loaded again in float32)
+    # Create pipeline (note: unet and vae are loaded again in float32).
     pipeline = DiffusionPipeline.from_pretrained(
         args.pretrained_model_name_or_path,
         vae=vae,
@@ -479,7 +478,7 @@ def log_validation(
     )
     pipeline.set_progress_bar_config(disable=True)
 
-    # We train on the simplified learning objective. If we were previously predicting a variance, we need the scheduler to ignore it
+    # We train on the simplified learning objective. If we were previously predicting a variance, we need the scheduler to ignore it.
     scheduler_args = {}
 
     if "variance_type" in pipeline.scheduler.config:
@@ -499,7 +498,7 @@ def log_validation(
     pipeline_args = {"prompt": args.validation_prompt}
     print(args.validation_prompt)
 
-    # run inference
+    # Run inference.
     generator = None if args.seed is None else torch.Generator(device=accelerator.device).manual_seed(args.seed)
     images = []
     for _ in range(args.num_validation_images):
@@ -540,50 +539,6 @@ def save_embedding(text_encoder, placeholder_token_ids, accelerator, args, save_
         torch.save(learned_embeds_dict, save_path)
 
 
-@torch.no_grad()
-def freeze_unet(unet, unet_params_to_train):
-    unet_params_to_train = unet_params_to_train.lower()
-    assert unet_params_to_train in ["all", "attn", "crossattn", "crossattn_kv", "conv", "none"]
-
-    # None of the models are trainable by default.
-    unet.requires_grad_(False)
-    trainable_params = []
-    num_params = 0
-    if unet_params_to_train == "attn":
-        for name, param in unet.named_parameters():
-            if "attn" in name:
-                param.requires_grad_(True)
-                trainable_params.append(name)
-                num_params += param.numel()
-    elif unet_params_to_train == "crossattn":
-        for name, param in unet.named_parameters():
-            if "attn2" in name:
-                param.requires_grad_(True)
-                trainable_params.append(name)
-                num_params += param.numel()
-    elif unet_params_to_train == "crossattn_kv":
-        for name, param in unet.named_parameters():
-            if "attn2.to_k" in name or "attn2.to_v" in name:
-                param.requires_grad_(True)
-                trainable_params.append(name)
-                num_params += param.numel()
-    elif unet_params_to_train == "conv":
-        for name, param in unet.named_parameters():
-            if not ("attn" in name or "attn" in name):
-                param.requires_grad_(True)
-                trainable_params.append(name)
-                num_params += param.numel()
-    elif unet_params_to_train == "all":
-        unet.requires_grad_(True)
-        trainable_params = ["all"]
-        num_params = sum(p.numel() for p in unet.parameters())
-    print(
-        f"Trainable params in U-Net: {trainable_params}, "
-        f"Total number of trainable parameters: {num_params:,}"
-    )
-    return unet, trainable_params
-
-
 def main(args):
     if args.report_to == "wandb" and args.hub_token is not None:
         raise ValueError(
@@ -608,7 +563,6 @@ def main(args):
 
     # Currently, it's not possible to do gradient accumulation when training two models with accelerate.accumulate
     # This will be enabled soon in accelerate. For now, we don't allow gradient accumulation when training two models.
-    # TODO (patil-suraj): Remove this check when gradient accumulation with two models is enabled in accelerate.
     if args.gradient_accumulation_steps > 1 and accelerator.num_processes > 1:
         raise ValueError(
             "Gradient accumulation is not supported when training the text encoder in distributed training. "
@@ -665,12 +619,7 @@ def main(args):
             use_blip_caption=True,
         )
 
-    # Handle the repository creation
-    # if accelerator.is_main_process:
-    #     if args.output_dir is not None:
-    #         os.makedirs(args.output_dir, exist_ok=True)
-
-    # Load the tokenizer
+    # Load the tokenizer.
     if args.tokenizer_name:
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, revision=args.revision, use_fast=False)
     elif args.pretrained_model_name_or_path:
@@ -681,10 +630,10 @@ def main(args):
             use_fast=False,
         )
 
-    # import correct text encoder class
+    # Import correct text encoder class.
     text_encoder_cls = import_model_class_from_model_name_or_path(args.pretrained_model_name_or_path, args.revision)
 
-    # Load scheduler and models
+    # Load scheduler and models.
     noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
     text_encoder = text_encoder_cls.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant
@@ -697,10 +646,7 @@ def main(args):
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
     )
 
-    # Freeze the UNet parameters
-    # unet, trainable_params = freeze_unet(unet, args.unet_params_to_train)
-
-    # Add the placeholder token in tokenizer
+    # Add the placeholder token in tokenizer.
     placeholder_token_dict = {}
     placeholder_token_ids = []
     args.placeholder_token = []
@@ -735,7 +681,7 @@ def main(args):
     unet.eval().requires_grad_(False)
     vae.eval().requires_grad_(False)
     text_encoder.requires_grad_(False)
-    # Add LoRA
+    # Add LoRA.
     if args.lora_rank > 0:
         text_encoder.text_model.encoder.requires_grad_(True)
         text_lora_config = LoraConfig(
@@ -785,7 +731,7 @@ def main(args):
         model = model._orig_mod if is_compiled_module(model) else model
         return model
 
-    # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
+    # Create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format.
     def save_model_hook(models, weights, output_dir):
         if accelerator.is_main_process:
             unet_lora_layers = None
@@ -806,7 +752,6 @@ def main(args):
                         get_peft_model_state_dict(model)
                     )
 
-                # make sure to pop weight so that corresponding model is not saved again
                 weights.pop()
 
             if args.lora_rank > 0:
@@ -818,15 +763,14 @@ def main(args):
 
     def load_model_hook(models, input_dir):
         while len(models) > 0:
-            # pop models so that they are not loaded again
             model = models.pop()
 
             if isinstance(model, type(unwrap_model(text_encoder))):
-                # load transformers style into model
+                # Load transformers style into model.
                 load_model = text_encoder_cls.from_pretrained(input_dir, subfolder="text_encoder")
                 model.config = load_model.config
             else:
-                # load diffusers style into model
+                # Load diffusers style into model.
                 load_model = UNet2DConditionModel.from_pretrained(input_dir, subfolder="unet")
                 model.register_to_config(**load_model.config)
 
@@ -841,7 +785,7 @@ def main(args):
         if args.unet_params_to_train != "none":
             unet.enable_gradient_checkpointing()
 
-    # Check that all trainable models are in full precision
+    # Check that all trainable models are in full precision.
     low_precision_error_string = (
         "Please make sure to always have all model weights in full float32 precision when starting training - even if"
         " doing mixed precision training. copy of the weights should still be float32."
@@ -865,7 +809,7 @@ def main(args):
             args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * accelerator.num_processes
         )
 
-    # Optimizer creation
+    # Optimizer creation.
     params_to_optimize = [{
         "params": list(text_encoder.get_input_embeddings().parameters()),
         "lr": args.emb_learning_rate,
@@ -973,7 +917,7 @@ def main(args):
     elif accelerator.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
 
-    # Move vae and text_encoder to device and cast to weight_dtype
+    # Move vae and text_encoder to device and cast to weight_dtype.
     unet.to(accelerator.device, dtype=weight_dtype)
     vae.to(accelerator.device, dtype=weight_dtype)
     original_text_encoder.to(accelerator.device, dtype=weight_dtype)
@@ -996,7 +940,7 @@ def main(args):
     step = 0
     initial_step = 0
 
-    # Potentially load in the weights and states from a previous save
+    # Potentially load in the weights and states from a previous save.
     if args.resume_from_checkpoint:
         if args.resume_from_checkpoint != "latest":
             path = os.path.basename(args.resume_from_checkpoint)
@@ -1028,13 +972,11 @@ def main(args):
         disable=not accelerator.is_local_main_process,
     )
 
-    # Timestep sampling weights - old
+    # Timestep sampling weights.
     t = torch.arange(noise_scheduler.config.num_train_timesteps, device=accelerator.device)
     logsnr = compute_snr(noise_scheduler, t).log()
-    ## old ##
     constant = logsnr.max()
     w_t = -logsnr + constant
-    ## new ##
     p_t = w_t / w_t.sum()
     dist = Categorical(probs=p_t)
 
@@ -1059,10 +1001,10 @@ def main(args):
         model_input = model_input * vae.config.scaling_factor
 
         with accelerator.accumulate(unet, text_encoder):
-            # Sample noise that we'll add to the model input
+            # Sample noise that we'll add to the model input.
             noise = torch.randn_like(model_input)
             bsz, channels, height, width = model_input.shape
-            # Sample a random timestep for each image
+            # Sample a random timestep for each image.
             if args.disable_weighted_sample:
                 timesteps = torch.randint(
                     0, noise_scheduler.config.num_train_timesteps,
@@ -1070,10 +1012,9 @@ def main(args):
                 )
             else:
                 timesteps = dist.sample((bsz,)).to(accelerator.device)
-            # Add noise to the model input according to the noise magnitude at each timestep
-            # (this is the forward diffusion process)
+            # Add noise to the model input according to the noise magnitude at each timestep.
             noisy_model_input = noise_scheduler.add_noise(model_input, noise, timesteps)
-            # Get the text embedding for conditioning
+            # Get the text embedding for conditioning.
             encoder_hidden_states = encode_prompt(
                 text_encoder,
                 input_ids,
@@ -1089,7 +1030,7 @@ def main(args):
             else:
                 class_labels = None
 
-            # Predict the noise residual
+            # Predict the noise residual.
             model_pred = unet(
                 noisy_model_input,
                 timesteps,
@@ -1101,7 +1042,7 @@ def main(args):
             if model_pred.shape[1] == 6:
                 model_pred, _ = torch.chunk(model_pred, 2, dim=1)
 
-            # Get the target for loss depending on the prediction type
+            # Get the target for loss depending on the prediction type.
             if noise_scheduler.config.prediction_type == "epsilon":
                 target = noise
             elif noise_scheduler.config.prediction_type == "v_prediction":
@@ -1113,10 +1054,10 @@ def main(args):
                 # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
                 model_pred, model_pred_prior = torch.chunk(model_pred, 2, dim=0)
                 target, target_prior = torch.chunk(target, 2, dim=0)
-                # Compute prior loss
+                # Compute prior loss.
                 prior_loss = F.mse_loss(model_pred_prior.float(), target_prior.float(), reduction="mean")
 
-            # Compute instance loss
+            # Compute instance loss.
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
             if "mask" in batch:
                 mask = batch["mask"].to(accelerator.device, dtype=weight_dtype)
@@ -1135,30 +1076,26 @@ def main(args):
                     prior_input_ids,
                     prior_attention_mask,
                     text_encoder_use_attention_mask=args.text_encoder_use_attention_mask,
-                )  # [torch.arange(bsz), :max_global_id]
+                ) 
                 original_prior_hidden_states = encode_prompt(
                     original_text_encoder,
                     prior_input_ids,
                     prior_attention_mask,
                     text_encoder_use_attention_mask=args.text_encoder_use_attention_mask,
-                )  # [torch.arange(bsz), :max_global_id]
+                ) 
                 if args.tppl_type == 'cos':
                     tppl_loss = 1 - F.cosine_similarity(prior_hidden_states, original_prior_hidden_states, dim=-1)
                     tppl_loss = tppl_loss.mean()
                 else:
                     tppl_loss = F.mse_loss(prior_hidden_states, original_prior_hidden_states, reduction="mean")
-                # print(prior_loss)
                 loss = loss + args.text_ppl_weight * tppl_loss
 
             accelerator.backward(loss)
-            # Zero out the gradients for all token embeddings except the newly added
-            # embeddings for the concept, as we only want to optimize the concept embeddings
             if args.placeholder_token:
                 if hasattr(text_encoder, "module"):
                     grads_text_encoder = text_encoder.module.get_input_embeddings().weight.grad
                 else:
                     grads_text_encoder = text_encoder.get_input_embeddings().weight.grad
-                # Get the index for tokens that we want to zero the grads for
                 index_grads_to_zero = torch.arange(len(tokenizer)) < min(added_token_ids)
                 grads_text_encoder.data[index_grads_to_zero, :] = grads_text_encoder.data[
                     index_grads_to_zero, :
@@ -1174,7 +1111,6 @@ def main(args):
             lr_scheduler.step()
             optimizer.zero_grad(set_to_none=True)
 
-            # param groups
             for i, param_group in enumerate(optimizer.param_groups):
                 if i == 0:  # text embeddings
                     min_lr = args.learning_rate
@@ -1183,20 +1119,18 @@ def main(args):
                     new_lr = args.emb_learning_rate * ratio
                     param_group["lr"] = new_lr
 
-        # Checks if the accelerator has performed an optimization step behind the scenes
+        # Checks if the accelerator has performed an optimization step behind the scenes.
         if accelerator.sync_gradients:
             progress_bar.update(1)
             step += 1
 
             if accelerator.is_main_process:
                 if step % args.checkpointing_steps == 0:
-                    # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
                     if args.checkpoints_total_limit is not None:
                         checkpoints = os.listdir(args.output_dir)
                         checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
                         checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
 
-                        # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
                         if len(checkpoints) >= args.checkpoints_total_limit:
                             num_to_remove = len(checkpoints) - args.checkpoints_total_limit + 1
                             removing_checkpoints = checkpoints[0:num_to_remove]
