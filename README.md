@@ -37,13 +37,39 @@ For the exact package versions we used, please refer to [requirements.txt](requi
 
 ## Training
 
-You need to download the human-written prompts dataset. Follow the instructions from [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix) to download `human-written-prompts.jsonl`, and then place it in the `data` directory.
+To get started, you will need to download the human-written prompts dataset. Follow the instructions from [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix) to download `human-written-prompts.jsonl`, and then place it in the `data` directory.
 
 We used a single image from each instance of [DreamBooth](https://github.com/google/dreambooth) benchmark.
 You can find images for each instance in [data/dreambooth_n1.txt](data/dreambooth_n1.txt). You can use this file to create a training data directory.
 Otherwise, the code will attempt to use a first `n=--num_samples` images in the directory.
 
 **Notice**: Our method was primarily tested using Stable Diffusion v1.5; however, this version is currently unavailable. You can use another version such as v1.4.
+
+To train the model, you can use the following command:
+
+```sh
+accelerate launch train_textboost.py \
+--pretrained_model_name_or_path=CompVis/stable-diffusion-v1-4 \
+--instance_data_dir data/dreambooth/dog  \
+--output_dir=output/tb/dog \
+--instance_token '<dog> dog' \
+--class_token 'dog' \
+--validation_prompt 'a <dog> dog in the jungle' \
+--validation_steps=50 \
+--placeholder_token '<dog>' \
+--initializer_token 'dog' \
+--learning_rate=5e-5 \
+--emb_learning_rate=1e-3 \
+--train_batch_size=8 \
+--max_train_steps=250 \
+--checkpointing_steps=50 \
+--num_samples=1 \
+--augment=paug \
+--lora_rank=4 \
+--augment_inversion
+```
+
+Alternatively, you can also use `torchrun` command. Here's an example:
 
 ```sh
 CUDA_VISIBLE_DEVICES=0 torchrun --rdzv-backend=c10d --rdzv-endpoint=localhost:0 --nproc-per-node=1 train_textboost.py \

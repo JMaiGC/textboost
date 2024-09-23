@@ -1,10 +1,6 @@
-import os
-import pickle
-
 import torch
 from diffusers import DiffusionPipeline
 from huggingface_hub.utils import insecure_hashlib
-from PIL import Image
 from tqdm import tqdm
 from transformers import (BlipForConditionalGeneration, BlipProcessor,
                           PretrainedConfig)
@@ -116,65 +112,6 @@ def generate_prior_images(
         del pipeline
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-
-
-def retrieve_prior_images(
-        class_images_dir,
-        class_token,
-        num_prior_images,
-        logger,
-        accelerator,
-):
-    import open_clip
-
-    if not class_images_dir.exists():
-        class_images_dir.mkdir(parents=True)
-    cur_class_images = len(list(class_images_dir.iterdir()))
-    if cur_class_images >= num_prior_images:
-        logger.info(f"Number of class images: {cur_class_images}.")
-        return
-
-    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-    blip = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
-    blip = blip.to(accelerator.device)
-
-    embedding = torch.load("assets/imagenet-vit_b_16-datacomp_s13b_b90k.pt")
-    embedding = embedding.to(accelerator.device)
-    with open("assets/imagenet_paths.pkl", "rb") as f:
-        paths = pickle.load(f)
-
-    model, _, preprocess = open_clip.create_model_and_transforms(
-        # 'ViT-H-14', pretrained='laion2b_s32b_b79k',
-        'ViT-B-16', pretrained='datacomp_xl_s13b_b90k',
-    )
-    tokenizer = open_clip.get_tokenizer('ViT-B-16')
-    model = model.to(accelerator.device)
-
-    ROOT = "/raid/backups/kunkim/ILSVRC/Data/CLS-LOC/train"
-    prompt = f"photo of a {class_token}"
-    text_emb = model.encode_text(
-        tokenizer([prompt]).to(accelerator.device)
-    )
-
-    sim = (embedding @ text_emb.T).squeeze(1)
-    topk, indices = sim.topk(num_prior_images)
-    for i, idx in enumerate(indices):
-        full_path = os.path.join(ROOT, paths[idx])
-        ext = full_path.split(".")[-1]
-        pil_image = Image.open(full_path).convert("RGB")
-
-        inputs = processor(pil_image, return_tensors="pt").to(accelerator.device)
-        out = blip.generate(**inputs)
-        caption = processor.decode(out[0], skip_special_tokens=True)
-        clean_caption = caption.replace('/', '_').replace(' ', '_').replace('\'', '').replace('\"', '')
-
-        pil_image.save(
-            os.path.join(class_images_dir, f"{i}-{clean_caption}.{ext}")
-        )
-
-    del model, tokenizer, embedding, text_emb
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
 
 
 def add_token(
