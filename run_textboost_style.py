@@ -62,7 +62,8 @@ def main(args):
     if model == "sd1.4":
         args.model = "CompVis/stable-diffusion-v1-4"
     elif model == "sd1.5":
-        args.model = "runwayml/stable-diffusion-v1-5"
+        # args.model = "runwayml/stable-diffusion-v1-5"
+        args.model = "stable-diffusion-v1-5/stable-diffusion-v1-5"
     elif model == "sd2.1":
         args.model = "stabilityai/stable-diffusion-2-1"
     elif model == "sdxl":

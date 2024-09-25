@@ -5,9 +5,36 @@ import os
 
 # subject_name, class, init_token
 INSTANCES = [
+    ("backpack", "backpack", None),
+    ("backpack_dog", "backpack", "dog"),
+    ("bear_plushie", "stuffed animal", None),
+    ("berry_bowl", "bowl", None),
+    ("can", "can", None),
+    ("candle", "candle", None),
+    ("cat", "cat", None),
+    ("cat2", "cat", None),
+    ("clock", "clock", None),
+    ("colorful_sneaker", "sneaker", None),
     ("dog", "dog", None),
+    ("dog2", "dog", None),
+    ("dog3", "dog", None),
+    ("dog5", "dog", None),
+    ("dog6", "dog", None),
+    ("dog7", "dog", None),
+    ("dog8", "dog", None),
+    ("duck_toy", "toy", None),
+    ("fancy_boot", "boot", None),
+    ("grey_sloth_plushie", "stuffed animal", "sloth"),
+    ("monster_toy", "toy", None),
+    ("pink_sunglasses", "glasses", None),
+    ("poop_emoji", "toy", None),
+    ("rc_car", "toy", None),
     ("red_cartoon", "cartoon", None),
+    ("robot_toy", "toy", None),
     ("shiny_sneaker", "sneaker", None),
+    ("teapot", "teapot", None),
+    ("vase", "vase", None),
+    ("wolf_plushie", "stuffed animal", None),
 ]
 
 parser = argparse.ArgumentParser(description='Run TextBoost experiment')
@@ -52,7 +79,8 @@ def main(args):
     if model == "sd1.4":
         args.model = "CompVis/stable-diffusion-v1-4"
     elif model == "sd1.5":
-        args.model = "runwayml/stable-diffusion-v1-5"
+        # args.model = "runwayml/stable-diffusion-v1-5"
+        args.model = "stable-diffusion-v1-5/stable-diffusion-v1-5"
     elif model == "sd2.1":
         args.model = "stabilityai/stable-diffusion-2-1"
     elif model == "sdxl":
@@ -65,7 +93,7 @@ def main(args):
         "sdxl": 1024,
     }[model]
 
-    data_dir = "dreambooth/dreambooth"
+    data_dir = "data/dreambooth_n1_train"
 
     num_gpu = len(args.gpu.split(","))
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
@@ -84,7 +112,6 @@ def main(args):
             "train_textboost.py",
             f"--pretrained_model_name_or_path={args.model}",
             f"--instance_data_dir={os.path.join(data_dir, name)}",
-            f"--class_data_dir=./data/gen_prior/{cls}",
             f"--output_dir=./{outdir}/{name}",
             f"--class_token={cls}",
             f"--instance_token=<{name}> {cls}",
