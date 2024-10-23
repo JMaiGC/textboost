@@ -41,10 +41,11 @@ To get started, you will need to download the human-written prompts dataset. Fol
 
 We used a single image from each instance of [DreamBooth](https://github.com/google/dreambooth) benchmark.
 You can find images for each instance in [data/dreambooth_n1.txt](data/dreambooth_n1.txt).
-We provided a simple script to help automate this.
+We provided a simple [script](split_dreambooth.py) to help automate this.
 
 ```sh
-python split_dreambooth.py --dreambooth-dir PATH/TO/DREAMBOOTH
+git clone https://github.com/google/dreambooth
+python split_dreambooth.py --dreambooth-dir dreambooth/dataset
 ```
 
 If not specified, the code will attempt to use a first `n=--num_samples` images in the directory.
@@ -107,8 +108,16 @@ To train the model on all DreamBooth instances, run the following command:
 python run_textboost.py
 ```
 
+## Inference
+
+After training, you can generate images using the following command:
+
+```sh
+python inference.py output/tb/dog --model CompVis/stable-diffusion-v1-4 --prompt "photo of a <dog> dog" --output test.jpg
+```
 
 ## Evaluation
+
 
 To evaluate the trained model, ensure that the folder structure follows the format shown below:
 
