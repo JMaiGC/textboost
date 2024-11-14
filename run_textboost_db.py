@@ -14,7 +14,7 @@ INSTANCES = [
     ("cat", "cat", "orange"),
     ("cat2", "cat", "gray"),
     ("clock", "clock", "yellow"),
-    ("colorful_sneaker", "sneaker", "colorful"),
+    ("colorful_sneaker", "sneaker", "color"),
     ("dog", "dog", "corgi"),
     ("dog2", "dog", "fluffy"),
     ("dog3", "dog", "poodle"),
@@ -34,7 +34,7 @@ INSTANCES = [
     ("shiny_sneaker", "sneaker", "shiny"),
     ("teapot", "teapot", "brown"),
     ("vase", "vase", "red"),
-    ("wolf_plushie", "stuffed animal", "wolf"),
+    ("wolf_plushie", "stuffed animal", "dog"),
 ]
 
 parser = argparse.ArgumentParser(description='Run TextBoost experiment')

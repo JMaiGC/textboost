@@ -82,9 +82,7 @@ def main(args):
             "train_textboost.py",
             f"--pretrained_model_name_or_path={args.model}",
             f"--instance_data_dir=./datasets/styledrop/{name}",
-            f"--class_data_dir=./data/gen_prior/dog",
             f"--output_dir=./{outdir}/{name}",
-            "--class_token=dog",  # NOTE: not used
             "--instance_token=<0>",
             f"--validation_prompts",
             "a man in <0>",
