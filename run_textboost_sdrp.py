@@ -3,41 +3,43 @@ import argparse
 import subprocess
 import os
 
-# Classes - ("subject_name", "class"),
+# Classes - ("subject_name", "class", "init token"),
 INSTANCES = [
-    ("00", "A canyon in {} style", "watercolor+painting"),
-    ("01", "A house in {} style", "watercolor+painting"),
-    ("02", "A cat in {} style", "watercolor+painting"),
-    ("03", "Flowers in {} style", "watercolor+painting"),
-    ("04", "A village in {} style", "oil+painting"),
-    ("05", "A village in {} style", "line+drawing"),
-    ("06", "A portrait of a man in {} style", "line+drawing"),
-    ("07", "A portrait of a person wearing a hat in {} style", "oil+painting"),
-    ("08", "A woman walking a dog in {} style", "flat+cartoon+illustration"),
-    ("09", "A woman working on a laptop in {} style", "flat+cartoon+illustration"),
-    ("10", "A Christmas tree in {} style", "sticker"),
-    ("11", "A wave in {} style", "abstract+rainbow+colored+flowing+smoke+wave+design"),
-    ("12", "A mushroom in {} style", "glowing"),
-    ("13", "a cat sits in front of a window in {} style", "drawing"),
-    ("14", "a path through the woods with trees and fog in {} style", "artistic"),
-    ("15", "Slices of watermelon and clouds in the background in {} style", "3+d+rendering"),
-    ("16", "A house in {} style", "3+d+rendering"),
-    ("17", "A thumbs up in {} style", "glowing"),
-    ("18", "A woman in {} style", "3+d+rendering"),
-    ("19", "A bear in {} style animal", "kid+crayon+drawing"),
-    ("20", "a statue of a man's head in {} style", "silver+sculpture"),
-    ("21", "A flower in {} style", "melting+golden+3+d+rendering"),
-    ("22", "A Viking face with beard in {} style", "wooden+sculpture"),
+    ("00", "A seascape and cliffs in {}", "watercolor painting style"),  # DCO
+    ("01", "A house in {}", "watercolor painting style"),
+    ("02", "A cat in {}", "watercolor painting style"),
+    # ("03", "Flowers in {}", "watercolor painting style"),
+    ("03", "Row of flowers in {}", "watercolor painting style"),  # DCO
+    ("04", "A village in {}", "oil painting style"),
+    ("05", "A village in {}", "line drawing style"),
+    # ("06", "A portrait of a man in {}", "line drawing style"),
+    ("07", "A portrait of a person wearing a hat in {}", "oil painting style"),
+    ("08", "A woman walking a dog in {}", "flat cartoon illustration style"),
+    ("09", "A woman working on a laptop in {}", "flat cartoon illustration style"),
+    ("10", "A Christmas tree in {}", "sticker style"),
+    ("11", "A wave in {}", "abstract rainbow colored flowing smoke wave design"),
+    ("12", "A mushroom in {}", "glowing style"),
+    # ("13", "a cat sits in front of a window in {}", None),
+    # ("14", "a path through the woods with trees and fog in {}", None),
+    ("15", "Slices of watermelon and clouds in the background in {}", "3D rendering style"),
+    ("16", "A house in {}", "3D rendering style"),
+    ("17", "A thumbs up in {}", "glowing style"),
+    # ("18", "A woman in {}", "3D rendering style"),
+    ("18", "A female figure with exaggerated proportions in {}", "modern 3D rendering style"),  # DCO
+    ("19", "A bear in {} animal", "kid crayon drawing style"),
+    # ("20", "a statue of a man's head in {}", "silver sculpture style"),
+    ("21", "A flower in {}", "melting golden 3D rendering style"),
+    ("22", "A Viking face with beard in {}", "wooden sculpture style"),
 ]
 
-parser = argparse.ArgumentParser(description='Run TEPA experiment')
+parser = argparse.ArgumentParser(description='Run TextBoost experiment')
 parser.add_argument("-g", "--gpu", type=str, default="7")
 parser.add_argument("-m", "--model", type=str, default="sd2.1")
 parser.add_argument("--instances", type=str, nargs="+", default=None)
 parser.add_argument("--augment", type=str, default="pda")
 parser.add_argument("--lora-rank", type=int, default=4)
 parser.add_argument("--null-prob", type=float, default=0.1)
-parser.add_argument("--kp-weight", type=float, default=0.1)
+parser.add_argument("--kpl-weight", type=float, default=0.1)
 parser.add_argument("--no-weighted-sample", action="store_true", default=False)
 parser.add_argument("--no-inversion", action="store_true", default=False)
 parser.add_argument("--desc", type=str, default=None)
@@ -66,8 +68,6 @@ def main(args):
         args.model = "stable-diffusion-v1-5/stable-diffusion-v1-5"
     elif model == "sd2.1":
         args.model = "stabilityai/stable-diffusion-2-1"
-    elif model == "sdxl":
-        args.model = "stabilityai/stable-diffusion-xl-base-1.0"
 
     num_gpu = len(args.gpu.split(","))
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
@@ -78,34 +78,35 @@ def main(args):
         f"--nproc-per-node={num_gpu}",
     ]
     for name, template, init_token in instances:
-        token = init_token.split("+")
-        token = "+".join([f"<{t}>" for t in token])
-        instance_token = token.replace("<3> <d>", "<3><d>")
-        val_token = token.replace("+", " ").replace("<3> <d>", "<3><d>")
         cmd = [
             "train_textboost.py",
             f"--pretrained_model_name_or_path={args.model}",
-            f"--instance_data_dir=./data/styledrop/{name}",
+            f"--instance_data_dir=./datasets/styledrop/{name}",
             f"--class_data_dir=./data/gen_prior/dog",
             f"--output_dir=./{outdir}/{name}",
             "--class_token=dog",  # NOTE: not used
-            f"--instance_token={instance_token}",
-            f"--validation_prompt=a dog in {val_token} style",
-            "--validation_steps=40",
-            "--placeholder_token", f"{token}",
+            "--instance_token=<0>",
+            f"--validation_prompts",
+            "a man in <0>",
+            "a cat in <0>",
+            "flowers in <0>",
+            "a dog in <0>",
+            "--validation_steps=25",
+            "--placeholder_token", f"<{name}>",
             "--initializer_token", f"{init_token}",
             f"--lora_rank={args.lora_rank}",
             "--learning_rate=1e-4",
             "--emb_learning_rate=1e-3",
             "--train_batch_size=4",
-            "--max_train_steps=200",
-            "--checkpointing_steps=40",
+            "--max_train_steps=150",
+            "--checkpointing_steps=25",
             "--gradient_accumulation_steps=1",
             f"--augment={args.augment}",
-            f"--text_ppl_weight={args.kp_weight}",
+            f"--kpl_weight={args.kpl_weight}",
             f"--null_prob={args.null_prob}",
             f"--template={template}",
             "--augment_ops=style",
+            "--mixed_precision=fp16",
         ]
         if not args.no_inversion:
             cmd.append("--augment_inversion")
