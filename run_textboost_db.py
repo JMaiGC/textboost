@@ -136,7 +136,7 @@ def main(args):
             f"--augment_p={args.augment_p}",
             f"--null_prob={args.null_prob}",
             f"--kpl_weight={args.kpl_weight}",
-            "--mixed_precision=fp16",
+            # "--mixed_precision=fp16",
         ]
         if args.num_samples is not None:
             cmd.append(f"--num_samples={args.num_samples}")
