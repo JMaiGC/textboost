@@ -6,7 +6,7 @@ import subprocess
 # subject_name, class, init_token
 INSTANCES = [
     ("backpack", "backpack", "red"),
-    ("backpack_dog", "backpack", "white flat"),
+    ("backpack_dog", "backpack", "cute dog"),
     ("bear_plushie", "stuffed animal", "bear"),
     ("berry_bowl", "bowl", "white"),
     ("can", "can", "blue"),
@@ -14,7 +14,7 @@ INSTANCES = [
     ("cat", "cat", "orange"),
     ("cat2", "cat", "gray"),
     ("clock", "clock", "yellow"),
-    ("colorful_sneaker", "sneaker", "color"),
+    ("colorful_sneaker", "sneaker", "common"),
     ("dog", "dog", "corgi"),
     ("dog2", "dog", "fluffy"),
     ("dog3", "dog", "poodle"),
