@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import argparse
 import subprocess
 import os
@@ -97,7 +97,7 @@ def main(args):
             f"--lora_rank={args.lora_rank}",
             "--learning_rate=1e-4",
             "--emb_learning_rate=1e-3",
-            "--train_batch_size=4", 
+            "--train_batch_size=4",
             "--max_train_steps=200",
             "--checkpointing_steps=40",
             "--gradient_accumulation_steps=1",

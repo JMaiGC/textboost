@@ -178,10 +178,7 @@ def grayscale(image, prompt, inversion=False, size=None):
     else:
         add_to_prompt = "grayscale"
 
-    if np.random.random() < 0.5:
-        prompt = f"{add_to_prompt} {prompt}"
-    else:
-        prompt = f"{prompt}, {add_to_prompt}"
+    prompt = f"{prompt}, {add_to_prompt}"
     return image, prompt
 
 
@@ -336,15 +333,10 @@ class PairedAugmentation:
                 grayscale,
                 adjust_scale,
                 adjust_brightness,
-                vertical_flip,
                 crop,
                 horizontal_translate,
                 cutout,
                 grid,
-            ]
-        elif ops == "vflip":
-            self.ops = [
-                vertical_flip,
             ]
         else:
             self.ops = [

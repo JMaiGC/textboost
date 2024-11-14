@@ -119,13 +119,15 @@ def add_token(
     tokenizer,
     placeholder_token,
     initializer_token,
-    num_vectors=1,
 ):
+    # Convert the initializer_token, placeholder_token to ids
+    initializer_token_ids = tokenizer.encode(initializer_token, add_special_tokens=False)
+    num_vectors = len(initializer_token_ids)
+    print(initializer_token_ids)
+
     # Add the placeholder token in tokenizer
     placeholder_tokens = [placeholder_token]
 
-    if num_vectors < 1:
-        raise ValueError(f"--num_vectors has to be larger or equal to 1, but is {num_vectors}")
     # add dummy tokens for multi-vector
     additional_tokens = []
     if num_vectors > 1:
@@ -144,13 +146,12 @@ def add_token(
             " `placeholder_token` that is not already in the tokenizer."
         )
 
-    # Convert the initializer_token, placeholder_token to ids
-    token_ids = tokenizer.encode(initializer_token, add_special_tokens=False)
-    # Check if initializer_token is a single token or a sequence of tokens
-    if len(token_ids) > len(placeholder_tokens):
-        raise ValueError("The initializer token must be a single token.")
+    if len(initializer_token_ids) != len(placeholder_tokens):
+        raise ValueError(
+            f"Number of tokens in the initializer_token and placeholder_token should be the same. "
+            f"initializer_token: {initializer_token}, placeholder_token: {placeholder_token}"
+        )
 
-    initializer_token_ids = token_ids
     placeholder_token_ids = tokenizer.convert_tokens_to_ids(placeholder_tokens)
 
     # Resize the token embeddings as we are adding new special tokens to the tokenizer
@@ -158,12 +159,11 @@ def add_token(
 
     # Initialise the newly added placeholder token with the embeddings of the initializer token
     token_embeds = text_encoder.get_input_embeddings().weight.data
-    with torch.no_grad():
-        for token_id in placeholder_token_ids:
-            for initializer_token_id in initializer_token_ids:
-                token_embed = token_embeds[initializer_token_id].clone()
-                token_embeds[token_id] = token_embed
-    return placeholder_token_ids
+    for token_id, initializer_token_id in zip(placeholder_token_ids, initializer_token_ids):
+        # print(token_id, initializer_token_id)
+        token_embed = token_embeds[initializer_token_id].detach().clone()
+        token_embeds[token_id] = token_embed
+    return placeholder_tokens, placeholder_token_ids
 
 
 def add_augmentation_tokens(
@@ -176,13 +176,12 @@ def add_augmentation_tokens(
 
     if aug_type == "object":
         augmentations = {
-            "<grayscale>": "gray",  # 1
+            "<grayscale>": "grayscale",  # 1
             "<zoom-in>": "zoom in",  # 2
             "<zoom-out>": "far away",  # 2
             "<bright>": "bright",
             "<dimmed>": "dark",
             "<hflip>": "flip",
-            "<vflip>": "flip",
             "<crop>": "crop",
             "<cutout>": "hole",
             "<left>": "on the left",  # 3
@@ -203,12 +202,11 @@ def add_augmentation_tokens(
     for placeholder_token, initializer_token in augmentations.items():
         token_ids = tokenizer.encode(initializer_token, add_special_tokens=False)
         num_vectors = len(token_ids)
-        new_token = add_token(
+        _, new_token = add_token(
             text_encoder,
             tokenizer,
             placeholder_token,
             initializer_token,
-            num_vectors=num_vectors,
         )
         # assert len(new_token) == 1, f"{new_token} is not a single token."
         aug_token_ids += new_token

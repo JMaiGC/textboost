@@ -5,4 +5,6 @@ dreambooth/
 
 download_data.sh
 
+# Symlinks
+datasets
 output

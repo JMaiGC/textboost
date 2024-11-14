@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import argparse
 import copy
 import importlib
@@ -111,8 +111,8 @@ def parse_args(input_args=None):
         help="Flag to add prior preservation loss.",
     )
     parser.add_argument("--image_ppl_weight", type=float, default=1.0, help="The weight of prior preservation loss.")
-    parser.add_argument("--text_ppl_weight", type=float, default=0.1, help="The weight of prior preservation loss.")
-    parser.add_argument("--tppl_type", type=str, default="cos", help="The type of prior preservation loss.")
+    parser.add_argument("--kpl_weight", type=float, default=0.1, help="The weight of prior preservation loss.")
+    parser.add_argument("--kpl_type", type=str, default="cos", help="The type of prior preservation loss.")
     parser.add_argument(
         "--num_prior_images",
         type=int,
@@ -272,8 +272,9 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
-        "--validation_prompt",
+        "--validation_prompts",
         type=str,
+        nargs="+",
         default=None,
         help="A prompt that is used during validation to verify that the model is learning.",
     )
@@ -289,7 +290,7 @@ def parse_args(input_args=None):
         default=100,
         help=(
             "Run validation every X steps. Validation consists of running the prompt"
-            " `args.validation_prompt` multiple times: `args.num_validation_images`"
+            " `args.validation_prompts` multiple times: `args.num_validation_images`"
             " and logging the images."
         ),
     )
@@ -459,22 +460,20 @@ def log_validation(
 ):
     logger.info(
         f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
-        f" {args.validation_prompt}."
+        f" {args.validation_prompts}."
     )
-
-    pipeline_args = {"safety_checker": None}
 
     # Create pipeline (note: unet and vae are loaded again in float32).
     pipeline = DiffusionPipeline.from_pretrained(
         args.pretrained_model_name_or_path,
         vae=vae,
         tokenizer=tokenizer,
-        text_encoder=text_encoder,
-        unet=unet,
+        text_encoder=accelerator.unwrap_model(text_encoder),
+        unet=accelerator.unwrap_model(unet),
+        safety_checker=None,
         revision=args.revision,
         variant=args.variant,
         torch_dtype=weight_dtype,
-        **pipeline_args,
     )
     pipeline.set_progress_bar_config(disable=True)
 
@@ -495,16 +494,21 @@ def log_validation(
     pipeline = pipeline.to(accelerator.device)
     pipeline.set_progress_bar_config(disable=True)
 
-    pipeline_args = {"prompt": args.validation_prompt}
-    print(args.validation_prompt)
-
     # Run inference.
     generator = None if args.seed is None else torch.Generator(device=accelerator.device).manual_seed(args.seed)
     images = []
-    for _ in range(args.num_validation_images):
+    for validation_prompt in args.validation_prompts:
+        for i, placeholder in enumerate(args.placeholder_token):
+            placeholder_str = " ".join(placeholder)
+            validation_prompt = validation_prompt.replace(f"<{i}>", placeholder_str)
+        pipeline_args = {
+            "prompt": validation_prompt,
+            "num_images_per_prompt": args.num_validation_images,
+        }
+        print(pipeline_args)
         with torch.autocast("cuda"):
-            image = pipeline(**pipeline_args, num_inference_steps=25, generator=generator).images[0]
-        images.append(image)
+            image = pipeline(**pipeline_args, num_inference_steps=25, generator=generator).images
+        images.extend(image)
 
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
@@ -513,7 +517,8 @@ def log_validation(
         if tracker.name == "wandb":
             tracker.log({
                 "validation": [
-                    wandb.Image(image, caption=f"{i}: {args.validation_prompt}")
+                    # wandb.Image(image, caption=f"{i}: {args.validation_prompts}")
+                    wandb.Image(image, caption=f"{i}")
                     for i, image in enumerate(images)
                 ]}
             )
@@ -647,6 +652,7 @@ def main(args):
     )
 
     # Add the placeholder token in tokenizer.
+    added_tokens = {}
     placeholder_token_dict = {}
     placeholder_token_ids = []
     args.placeholder_token = []
@@ -657,26 +663,34 @@ def main(args):
             concept["placeholder_token"].split("+"), concept["initializer_token"].split("+")
         ):
             print(placeholder_token, initializer_token)
-            token_ids = add_token(
+            placeholder_tokens, token_ids = add_token(
                 text_encoder,
                 tokenizer,
                 placeholder_token,
                 initializer_token,
-                num_vectors=args.num_vectors,
             )
             placeholder_token_dict[n] = token_ids
             placeholder_token_ids += token_ids
             n += 1
-            args.placeholder_token.append(placeholder_token)
+            args.placeholder_token.append(placeholder_tokens)
             args.initializer_token.append(initializer_token)
+            for token, token_id in zip(placeholder_tokens, token_ids):
+                added_tokens[token] = token_id
     if args.augment_inversion:
         aug_token_ids, aug_token_dict = add_augmentation_tokens(
-            text_encoder, tokenizer, aug_type="style" if args.augment_ops=="style" else "object",
+            text_encoder,
+            tokenizer,
+            aug_type="style" if args.augment_ops=="style" else "object",
         )
         added_token_ids = placeholder_token_ids + aug_token_ids
     else:
         added_token_ids = placeholder_token_ids
     print(tokenizer)
+    # Update the concept list with the added tokens.
+    for i, concept in enumerate(args.concepts_list):
+        concept["instance_token"] = args.placeholder_token[i]
+        concept["placeholder_token"] = args.placeholder_token[i]
+        concept["initializer_token"] = args.initializer_token[i]
 
     unet.eval().requires_grad_(False)
     vae.eval().requires_grad_(False)
@@ -744,13 +758,13 @@ def main(args):
                     unet_lora_layers = convert_state_dict_to_diffusers(
                         get_peft_model_state_dict(model)
                     )
-                elif (
-                    args.lora_rank > 0
-                    and isinstance(model, type(unwrap_model(text_encoder)))
-                ):
-                    text_encoder_lora_layers = convert_state_dict_to_diffusers(
-                        get_peft_model_state_dict(model)
-                    )
+                # elif (
+                #     args.lora_rank > 0
+                #     and isinstance(model, type(unwrap_model(text_encoder)))
+                # ):
+                #     text_encoder_lora_layers = convert_state_dict_to_diffusers(
+                #         get_peft_model_state_dict(model)
+                #     )
 
                 weights.pop()
 
@@ -758,7 +772,7 @@ def main(args):
                 LoraLoaderMixin.save_lora_weights(
                     output_dir,
                     unet_lora_layers=unet_lora_layers,
-                    text_encoder_lora_layers=text_encoder_lora_layers,
+                    # text_encoder_lora_layers=text_encoder_lora_layers,
                 )
 
     def load_model_hook(models, input_dir):
@@ -919,7 +933,7 @@ def main(args):
 
     # Move vae and text_encoder to device and cast to weight_dtype.
     unet.to(accelerator.device, dtype=weight_dtype)
-    vae.to(accelerator.device, dtype=weight_dtype)
+    vae.to(accelerator.device, dtype=torch.float32)
     original_text_encoder.to(accelerator.device, dtype=weight_dtype)
 
     # We need to initialize the trackers we use, and also store our configuration.
@@ -980,6 +994,23 @@ def main(args):
     p_t = w_t / w_t.sum()
     dist = Categorical(probs=p_t)
 
+    # Compute max text embedding norm.
+    with torch.no_grad():
+        input_embeddings = (
+            accelerator.unwrap_model(text_encoder)
+            .get_input_embeddings()
+            .weight
+            .detach()
+        )  # (num_tokens, hidden_size)
+        max_norm = -1.0
+        # Last two tokens are the <start> and <end> tokens.
+        for emb in input_embeddings[:min(added_token_ids)-2]:
+            norm = emb.norm().item()
+            if norm > max_norm:
+                max_norm = norm
+        accelerator.log({"max_norm": max_norm}, step=0)
+        print("Max norm:", max_norm)
+
     text_encoder.train()
     train_iterator = iter(train_dataloader)
     prior_iterator = iter(prior_dataloader)
@@ -988,7 +1019,7 @@ def main(args):
     while step < args.max_train_steps:
         batch = next(train_iterator)
 
-        pixel_values = batch["pixel_values"].to(accelerator.device, dtype=weight_dtype)
+        pixel_values = batch["pixel_values"].to(accelerator.device, dtype=vae.dtype)
         input_ids = batch["input_ids"].to(accelerator.device)
         attention_mask = batch["attention_mask"]
 
@@ -1032,9 +1063,9 @@ def main(args):
 
             # Predict the noise residual.
             model_pred = unet(
-                noisy_model_input,
+                noisy_model_input.to(unet.dtype),
                 timesteps,
-                encoder_hidden_states,
+                encoder_hidden_states.to(unet.dtype),
                 class_labels=class_labels,
                 return_dict=False,
             )[0]
@@ -1069,26 +1100,26 @@ def main(args):
                 # Add the prior loss to the instance loss.
                 loss = loss + args.image_ppl_weight * prior_loss
 
-            if args.text_ppl_weight > 0.0:
+            if args.kpl_weight > 0.0:
                 prior_attention_mask = torch.cat(prior_attention_mask, dim=0).to(accelerator.device)
                 prior_hidden_states = encode_prompt(
                     text_encoder,
                     prior_input_ids,
                     prior_attention_mask,
                     text_encoder_use_attention_mask=args.text_encoder_use_attention_mask,
-                ) 
+                ).float()
                 original_prior_hidden_states = encode_prompt(
                     original_text_encoder,
                     prior_input_ids,
                     prior_attention_mask,
                     text_encoder_use_attention_mask=args.text_encoder_use_attention_mask,
-                ) 
-                if args.tppl_type == 'cos':
-                    tppl_loss = 1 - F.cosine_similarity(prior_hidden_states, original_prior_hidden_states, dim=-1)
-                    tppl_loss = tppl_loss.mean()
+                ).float()
+                if args.kpl_type == 'cos':
+                    kp_loss = 1 - F.cosine_similarity(prior_hidden_states, original_prior_hidden_states, dim=-1)
+                    kp_loss = kp_loss.mean()
                 else:
-                    tppl_loss = F.mse_loss(prior_hidden_states, original_prior_hidden_states, reduction="mean")
-                loss = loss + args.text_ppl_weight * tppl_loss
+                    kp_loss = F.mse_loss(prior_hidden_states, original_prior_hidden_states, reduction="mean")
+                loss = loss + args.kpl_weight * kp_loss
 
             accelerator.backward(loss)
             if args.placeholder_token:
@@ -1111,13 +1142,19 @@ def main(args):
             lr_scheduler.step()
             optimizer.zero_grad(set_to_none=True)
 
-            for i, param_group in enumerate(optimizer.param_groups):
-                if i == 0:  # text embeddings
-                    min_lr = args.learning_rate
-                    decay_end = 250
-                    ratio = max(min_lr, (decay_end-step-1) / decay_end)
-                    new_lr = args.emb_learning_rate * ratio
-                    param_group["lr"] = new_lr
+            with torch.no_grad():
+                if hasattr(text_encoder, "module"):
+                    input_embeddings = text_encoder.module.get_input_embeddings()
+                else:
+                    input_embeddings = text_encoder.get_input_embeddings()
+                added_embeddings = input_embeddings.weight[added_token_ids]
+                v_norm = torch.norm(added_embeddings.detach(), dim=-1, keepdim=True)
+                scale = torch.minimum(max_norm * torch.ones_like(v_norm), v_norm)
+                input_embeddings.weight.data[added_token_ids] = (
+                    (scale / v_norm) * added_embeddings
+                )
+                accelerator.log({"added_embedding_norm": v_norm.mean()}, step=step)
+
 
         # Checks if the accelerator has performed an optimization step behind the scenes.
         if accelerator.sync_gradients:
@@ -1145,19 +1182,24 @@ def main(args):
                                 shutil.rmtree(removing_checkpoint)
                     save_path = os.path.join(args.output_dir, f"checkpoint-{step}")
                     accelerator.save_state(save_path)
+                    (
+                        accelerator.unwrap_model(text_encoder)
+                        .to(torch.float32)
+                        .save_pretrained(os.path.join(save_path, "text_encoder"))
+                    )
                     logger.info(f"Saved state to {save_path}")
 
                     # Save the embeddings.
                     ckpt_dir = os.path.join(args.output_dir, f"checkpoint-{step}")
                     os.makedirs(ckpt_dir, exist_ok=True)
-                    for i, token_ids in placeholder_token_dict.items():
+                    for token, token_id in added_tokens.items():
                         learned_embeds = (
                             accelerator.unwrap_model(text_encoder)
                             .get_input_embeddings()
-                            .weight[min(token_ids) : max(token_ids) + 1]
+                            .weight[token_id]
                         )
-                        learned_embeds_dict = {args.placeholder_token[i]: learned_embeds.detach().cpu()}
-                        token = args.placeholder_token[i].replace("<", "").replace(">", "")
+                        learned_embeds_dict = {token: learned_embeds.detach().cpu()}
+                        token = token.replace("<", "").replace(">", "")
                         save_path = os.path.join(ckpt_dir, f"{token}.bin")
                         torch.save(learned_embeds_dict, save_path)
 
@@ -1175,11 +1217,11 @@ def main(args):
 
                 images = []
 
-                if args.validation_prompt is not None and step % args.validation_steps == 0:
+                if args.validation_prompts and step % args.validation_steps == 0:
                     images = log_validation(
-                        unwrap_model(text_encoder),
+                        text_encoder,
                         tokenizer,
-                        unwrap_model(unet),
+                        unet,
                         vae,
                         args,
                         accelerator,
@@ -1187,9 +1229,9 @@ def main(args):
                         step,
                     )
                     if images:
-                        row = min(args.num_validation_images, 2)
-                        col = args.num_validation_images // row
-                        image_grid = make_image_grid(images, row, col)
+                        rows = len(args.validation_prompts)
+                        cols = args.num_validation_images
+                        image_grid = make_image_grid(images, rows, cols)
                         image_grid.save(os.path.join(args.output_dir, f"validation_{step}.jpg"))
 
         logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}
@@ -1207,14 +1249,14 @@ def main(args):
             text_encoder = unwrap_model(text_encoder).to(torch.float32)
             text_encoder.save_pretrained(os.path.join(args.output_dir, "text_encoder"))
 
-        for i, token_ids in placeholder_token_dict.items():
+        for token, token_id in added_tokens.items():
             learned_embeds = (
                 accelerator.unwrap_model(text_encoder)
                 .get_input_embeddings()
-                .weight[min(token_ids) : max(token_ids) + 1]
+                .weight[token_id]
             )
-            learned_embeds_dict = {args.placeholder_token[i]: learned_embeds.detach().cpu()}
-            token = args.placeholder_token[i].replace("<", "").replace(">", "")
+            learned_embeds_dict = {token: learned_embeds.detach().cpu()}
+            token = token.replace("<", "").replace(">", "")
             save_path = os.path.join(args.output_dir, f"{token}.bin")
             torch.save(learned_embeds_dict, save_path)
 
