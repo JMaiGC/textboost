@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
-import subprocess
 import os
+import subprocess
 
 # Classes - ("subject_name", "class", "init token"),
 INSTANCES = [
@@ -37,7 +37,7 @@ parser.add_argument("-g", "--gpu", type=str, default="7")
 parser.add_argument("-m", "--model", type=str, default="sd2.1")
 parser.add_argument("--instances", type=str, nargs="+", default=None)
 parser.add_argument("--augment", type=str, default="pda")
-parser.add_argument("--lora-rank", type=int, default=4)
+parser.add_argument("--lora-rank", type=int, default=2)
 parser.add_argument("--null-prob", type=float, default=0.1)
 parser.add_argument("--kpl-weight", type=float, default=0.1)
 parser.add_argument("--no-weighted-sample", action="store_true", default=False)
@@ -95,7 +95,7 @@ def main(args):
             "--placeholder_token", f"<{name}>",
             "--initializer_token", f"{init_token}",
             f"--lora_rank={args.lora_rank}",
-            "--learning_rate=1e-4",
+            "--learning_rate=5e-3",
             "--emb_learning_rate=1e-3",
             "--train_batch_size=4",
             "--max_train_steps=150",
