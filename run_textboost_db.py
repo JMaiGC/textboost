@@ -46,6 +46,7 @@ parser.add_argument("--instances", type=str, nargs="+", default=None)
 parser.add_argument("--lora-rank", type=int, default=4)
 parser.add_argument("--total-steps", type=int, default=250)
 parser.add_argument("--lr", type=float, default=5e-5)
+parser.add_argument("--batch-size", type=int, default=8)
 
 parser.add_argument("--train-params", type=str, default="none")
 parser.add_argument("--augment", type=str, default="pda")
@@ -126,7 +127,7 @@ def main(args):
             f"--lora_rank={args.lora_rank}",
             "--learning_rate=5e-5",
             "--emb_learning_rate=1e-3", 
-            "--train_batch_size=8",
+            f"--train_batch_size={args.batch_size//num_gpu}",
             f"--max_train_steps={args.total_steps}",
             f"--checkpointing_steps={args.total_steps // 5}",
             "--gradient_accumulation_steps=1",
