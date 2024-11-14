@@ -27,7 +27,7 @@ INSTANCES = [
     ("grey_sloth_plushie", "stuffed animal", "sloth"),
     ("monster_toy", "toy", "stuffed"),
     ("pink_sunglasses", "glasses", "pink"),
-    ("poop_emoji", "toy", "poop emoji"),
+    ("poop_emoji", "toy", "poop"),
     ("rc_car", "toy", "rc car"),
     ("red_cartoon", "cartoon", "devil"),
     ("robot_toy", "toy", "robot"),
