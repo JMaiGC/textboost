@@ -104,8 +104,8 @@ def main(args):
     for name, cls, init_token in instances:
         if init_token is None:
             init_token = cls
-        else:
-            init_token = f"{init_token} {cls}"
+        # else:
+        #     init_token = f"{init_token} {cls}"
         cmd = [
             "train_textboost.py",
             f"--pretrained_model_name_or_path={args.model}",
