@@ -6,7 +6,7 @@ import subprocess
 # subject_name, class, init_token
 INSTANCES = [
     ("backpack", "backpack", "red"),
-    ("backpack_dog", "backpack", "cute dog"),
+    ("backpack_dog", "backpack", "dog face"),
     ("bear_plushie", "stuffed animal", "bear"),
     ("berry_bowl", "bowl", "white"),
     ("can", "can", "blue"),
@@ -14,7 +14,7 @@ INSTANCES = [
     ("cat", "cat", "orange"),
     ("cat2", "cat", "gray"),
     ("clock", "clock", "yellow"),
-    ("colorful_sneaker", "sneaker", "common"),
+    ("colorful_sneaker", "sneaker", "colorful"),
     ("dog", "dog", "corgi"),
     ("dog2", "dog", "fluffy"),
     ("dog3", "dog", "poodle"),
@@ -104,8 +104,8 @@ def main(args):
     for name, cls, init_token in instances:
         if init_token is None:
             init_token = cls
-        if len(init_token.split(" ")) > 1:
-            init_token = init_token.split(" ")[-1]
+        else:
+            init_token = f"{init_token} {cls}"
         cmd = [
             "train_textboost.py",
             f"--pretrained_model_name_or_path={args.model}",
