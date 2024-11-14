@@ -29,7 +29,7 @@ INSTANCES = [
     ("pink_sunglasses", "glasses", "pink"),
     ("poop_emoji", "toy", "poop"),
     ("rc_car", "toy", "rc car"),
-    ("red_cartoon", "cartoon", "devil"),
+    ("red_cartoon", "cartoon", "red devil"),
     ("robot_toy", "toy", "robot"),
     ("shiny_sneaker", "sneaker", "shiny"),
     ("teapot", "teapot", "brown"),
