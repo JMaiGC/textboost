@@ -93,7 +93,7 @@ def main(args):
             "--placeholder_token", f"<{name}>",
             "--initializer_token", f"{init_token}",
             f"--lora_rank={args.lora_rank}",
-            "--learning_rate=5e-3",
+            "--learning_rate=1e-4",
             "--emb_learning_rate=1e-3",
             "--train_batch_size=4",
             "--max_train_steps=150",
@@ -104,7 +104,7 @@ def main(args):
             f"--null_prob={args.null_prob}",
             f"--template={template}",
             "--augment_ops=style",
-            "--mixed_precision=fp16",
+            # "--mixed_precision=fp16",
         ]
         if not args.no_inversion:
             cmd.append("--augment_inversion")
