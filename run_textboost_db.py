@@ -50,7 +50,7 @@ parser.add_argument("--batch-size", type=int, default=8)
 
 parser.add_argument("--train-params", type=str, default="none")
 parser.add_argument("--augment", type=str, default="pda")
-parser.add_argument("--augment-p", type=float, default=0.8)
+parser.add_argument("--augment-p", type=float, default=0.5)
 parser.add_argument("--null-prob", type=float, default=0.1)
 parser.add_argument("--kpl-weight", type=float, default=0.1)
 
@@ -136,7 +136,7 @@ def main(args):
             f"--augment_p={args.augment_p}",
             f"--null_prob={args.null_prob}",
             f"--kpl_weight={args.kpl_weight}",
-            # "--mixed_precision=fp16",
+            "--mixed_precision=fp16",
         ]
         if args.num_samples is not None:
             cmd.append(f"--num_samples={args.num_samples}")

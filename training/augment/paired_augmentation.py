@@ -88,25 +88,6 @@ def horizontal_flip(image, prompt, inversion=False):
     return image, prompt
 
 
-def vertical_flip(image, prompt, inversion=False):
-    image = v2.functional.vflip(image)
-
-    if inversion:
-        if np.random.rand() < 0.5:
-            prompt = "<vflip> " + prompt
-        else:
-            prompt = prompt + ", <vflip>"
-    else:
-        rand_int = np.random.randint(0, 3)
-        if rand_int == 0:
-            prompt = "upside down " + prompt
-        elif rand_int == 1:
-            prompt = "flipped vertically " + prompt
-        else:
-            prompt = prompt + f", upside down"
-    return image, prompt
-
-
 def horizontal_translate(image, prompt, inversion=False):
     shift_dir = np.random.randint(0, 2)
     w, h = image.size
@@ -174,7 +155,7 @@ def grayscale(image, prompt, inversion=False, size=None):
     image = PIL.ImageOps.grayscale(image).convert("RGB")
 
     if inversion:
-        add_to_prompt = "<grayscale>"
+        add_to_prompt = "<grayscale_0> <grayscale_1>"
     else:
         add_to_prompt = "grayscale"
 
@@ -301,7 +282,8 @@ class PairedAugmentation:
             self,
             hflip="false",
             inversion=False,
-            p=0.8,
+            p=0.5,
+            color_prob=0.5,
             augment_prompt=True,
             ops="object",
         ):
@@ -310,41 +292,47 @@ class PairedAugmentation:
         self.hflip = False
         self.inversion = inversion
         self.p = p
+        self.color_prob = color_prob
         self.augment_prompt = augment_prompt
 
-        self.geometric_ops = [
-            adjust_scale,
-            vertical_flip,
-            crop,
-            horizontal_translate,
-            # rotate,
-        ]
-        self.color_ops = [
-            grayscale,
-            adjust_brightness,
-            # jpeg_compression,
-        ]
-        self.other_ops = [
-            cutout,
-            grid,
-        ]
         if ops == "object":
-            self.ops = [
-                grayscale,
+            self.geometric_ops = [
                 adjust_scale,
-                adjust_brightness,
                 crop,
                 horizontal_translate,
+                # rotate,
+            ]
+            self.color_ops = [
+                grayscale,
+                adjust_brightness,
+                # jpeg_compression,
+            ]
+            self.other_ops = [
                 cutout,
                 grid,
             ]
-        else:
-            self.ops = [
-                # vertical_flip,
-                # rotate,
+            # self.ops = [
+            #     grayscale,
+            #     adjust_scale,
+            #     adjust_brightness,
+            #     crop,
+            #     horizontal_translate,
+            #     cutout,
+            #     grid,
+            # ]
+        else:  # "style"
+            self.geometric_ops = [
             ]
+            self.color_ops = [
+            ]
+            self.other_ops = [
+            ]
+            # self.ops = [
+            #     horizontal_flip,
+            # ]
         if hflip == "inversion":
-            self.ops.append(horizontal_flip)
+            # self.ops.append(horizontal_flip)
+            self.geometric_ops.append(horizontal_flip)
         elif hflip == "true":
             self.hflip = True
 
@@ -367,7 +355,7 @@ class PairedAugmentation:
             if self.augment_prompt:
                 prompt = new_prompt
 
-        if len(self.color_ops) > 0 and np.random.rand() < self.p:
+        if len(self.color_ops) > 0 and np.random.rand() < self.color_prob:
             op = np.random.choice(self.color_ops)
             image, new_prompt = op(image, prompt, self.inversion)
             if self.augment_prompt:

@@ -176,7 +176,7 @@ def add_augmentation_tokens(
 
     if aug_type == "object":
         augmentations = {
-            "<grayscale>": "grayscale",  # 1
+            "<grayscale>": "grayscale",  # 2
             "<zoom-in>": "zoom in",  # 2
             "<zoom-out>": "far away",  # 2
             "<bright>": "bright",
@@ -191,10 +191,6 @@ def add_augmentation_tokens(
     else:
         augmentations = {
             "<hflip>": "flip",
-            "<vflip>": "flip",
-            "<rot90>": "rotate",
-            "<rot270>": "rotate",
-            "<jigsaw>": "jigsaw",
         }
 
     aug_token_ids = []
