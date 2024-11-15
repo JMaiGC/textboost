@@ -321,12 +321,9 @@ class PairedAugmentation:
             #     grid,
             # ]
         else:  # "style"
-            self.geometric_ops = [
-            ]
-            self.color_ops = [
-            ]
-            self.other_ops = [
-            ]
+            self.geometric_ops = []
+            self.color_ops = []
+            self.other_ops = []
             # self.ops = [
             #     horizontal_flip,
             # ]
