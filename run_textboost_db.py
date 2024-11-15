@@ -125,7 +125,7 @@ def main(args):
             f"--initializer_token={init_token}",
             f"--resolution={resolution}",
             f"--lora_rank={args.lora_rank}",
-            "--learning_rate=5e-5",
+            f"--learning_rate={args.lr}",
             "--emb_learning_rate=1e-3", 
             f"--train_batch_size={args.batch_size//num_gpu}",
             f"--max_train_steps={args.total_steps}",
