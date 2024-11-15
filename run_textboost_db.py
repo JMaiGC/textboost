@@ -57,6 +57,7 @@ parser.add_argument("--kpl-weight", type=float, default=0.1)
 
 parser.add_argument("--no-weighted-sample", action="store_true", default=False)
 parser.add_argument("--no-inversion", action="store_true", default=False)
+parser.add_argument("--mixing", action="store_true", default=False)
 
 parser.add_argument("--desc", type=str, default=None)
 
@@ -147,6 +148,8 @@ def main(args):
             cmd.append("--disable_weighted_sample")
         if args.augment == "none":
             cmd.append("--center_crop")
+        if args.mixing:
+            cmd.append("--mixing")
         subprocess.run(torchrun_cmd + cmd)
 
         # save cmd as text file

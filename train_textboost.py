@@ -420,9 +420,10 @@ def parse_args(input_args=None):
         default="tepa",
     )
     parser.add_argument(
-        "--num_vectors",
-        type=int,
-        default=1,
+        "--mixing",
+        action="store_true",
+        default=False,
+        help="Whether to use mixing.",
     )
 
     if input_args is not None:
@@ -1091,6 +1092,15 @@ def main(args):
                 grads_text_encoder.data[index_grads_to_zero, :] = grads_text_encoder.data[
                     index_grads_to_zero, :
                 ].fill_(0)
+
+            if args.mixing:
+                for name, param in text_encoder.named_parameters():
+                    if "lora_B" in name:
+                        if args.augment_ops == "object":
+                            # zero out the gradients or odd indices
+                            param.grad[1::2, :] = 0.0
+                        else:
+                            param.grad[0::2, :] = 0.0
 
             if accelerator.sync_gradients:
                 params_to_clip = (

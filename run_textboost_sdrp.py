@@ -104,6 +104,7 @@ def main(args):
             f"--null_prob={args.null_prob}",
             f"--template={template}",
             "--augment_ops=style",
+            "--mixing",
             # "--mixed_precision=fp16",
         ]
         if not args.no_inversion:
