@@ -893,7 +893,7 @@ def main(args):
     prior_dataset = PriorDataset(
         edit_dataset,
         tokenizer,
-        additional_template="tepa",
+        additional_template="textboost",
         additional_category=args.class_token,
         null_prob=args.null_prob,
     )
@@ -994,23 +994,6 @@ def main(args):
     p_t = w_t / w_t.sum()
     dist = Categorical(probs=p_t)
 
-    # Compute max text embedding norm.
-    with torch.no_grad():
-        input_embeddings = (
-            accelerator.unwrap_model(text_encoder)
-            .get_input_embeddings()
-            .weight
-            .detach()
-        )  # (num_tokens, hidden_size)
-        max_norm = -1.0
-        # Last two tokens are the <start> and <end> tokens.
-        for emb in input_embeddings[:min(added_token_ids)-2]:
-            norm = emb.norm().item()
-            if norm > max_norm:
-                max_norm = norm
-        accelerator.log({"max_norm": max_norm}, step=0)
-        print("Max norm:", max_norm)
-
     text_encoder.train()
     train_iterator = iter(train_dataloader)
     prior_iterator = iter(prior_dataloader)
@@ -1053,25 +1036,12 @@ def main(args):
                 text_encoder_use_attention_mask=args.text_encoder_use_attention_mask,
             )
 
-            if unwrap_model(unet).config.in_channels == channels * 2:
-                noisy_model_input = torch.cat([noisy_model_input, noisy_model_input], dim=1)
-
-            if args.class_labels_conditioning == "timesteps":
-                class_labels = timesteps
-            else:
-                class_labels = None
-
             # Predict the noise residual.
             model_pred = unet(
                 noisy_model_input.to(unet.dtype),
                 timesteps,
                 encoder_hidden_states.to(unet.dtype),
-                class_labels=class_labels,
-                return_dict=False,
-            )[0]
-
-            if model_pred.shape[1] == 6:
-                model_pred, _ = torch.chunk(model_pred, 2, dim=1)
+            ).sample
 
             # Get the target for loss depending on the prediction type.
             if noise_scheduler.config.prediction_type == "epsilon":
@@ -1102,18 +1072,8 @@ def main(args):
 
             if args.kpl_weight > 0.0:
                 prior_attention_mask = torch.cat(prior_attention_mask, dim=0).to(accelerator.device)
-                prior_hidden_states = encode_prompt(
-                    text_encoder,
-                    prior_input_ids,
-                    prior_attention_mask,
-                    text_encoder_use_attention_mask=args.text_encoder_use_attention_mask,
-                ).float()
-                original_prior_hidden_states = encode_prompt(
-                    original_text_encoder,
-                    prior_input_ids,
-                    prior_attention_mask,
-                    text_encoder_use_attention_mask=args.text_encoder_use_attention_mask,
-                ).float()
+                prior_hidden_states = text_encoder(prior_input_ids)[0].float()
+                original_prior_hidden_states = original_text_encoder(prior_input_ids)[0].float()
                 if args.kpl_type == 'cos':
                     kp_loss = 1 - F.cosine_similarity(prior_hidden_states, original_prior_hidden_states, dim=-1)
                     kp_loss = kp_loss.mean()
@@ -1141,19 +1101,6 @@ def main(args):
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad(set_to_none=True)
-
-            with torch.no_grad():
-                if hasattr(text_encoder, "module"):
-                    input_embeddings = text_encoder.module.get_input_embeddings()
-                else:
-                    input_embeddings = text_encoder.get_input_embeddings()
-                added_embeddings = input_embeddings.weight[added_token_ids]
-                v_norm = torch.norm(added_embeddings.detach(), dim=-1, keepdim=True)
-                scale = torch.minimum(max_norm * torch.ones_like(v_norm), v_norm)
-                input_embeddings.weight.data[added_token_ids] = (
-                    (scale / v_norm) * added_embeddings
-                )
-                accelerator.log({"added_embedding_norm": v_norm.mean()}, step=step)
 
 
         # Checks if the accelerator has performed an optimization step behind the scenes.

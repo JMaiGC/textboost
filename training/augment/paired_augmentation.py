@@ -237,7 +237,7 @@ def jpeg_compression(image, prompt, inversion=False):
     return image, prompt
 
 
-def grid(image, prompt, inversion=False):
+def square_grid(image, prompt, inversion=False):
     axis = np.random.choice([2, 4])
     w, h = image.size
     grid_w, w_remainder = divmod(w, axis)
@@ -309,7 +309,7 @@ class PairedAugmentation:
             ]
             self.other_ops = [
                 cutout,
-                grid,
+                square_grid,
             ]
             # self.ops = [
             #     grayscale,
